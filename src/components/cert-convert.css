@@ -1,0 +1,40 @@
+.cert-convert {
+    padding-top: 20px;
+}
+
+.cert-convert label {
+    text-align: left;
+    display: block;
+}
+
+.cert-convert h2 {
+    font-size: 20px;
+    color: #f1356d;
+    margin-bottom: 30px;
+}
+
+.cert-convert input, .cert-convert textarea, .cert-convert select {
+    width: 100%;
+    padding: 6px 10px;
+    margin: 10px 0;
+    border: 1px solid #ddd;
+    box-sizing: border-box;
+    display: block;
+}
+
+.cert-convert textarea {
+    min-height: 200px;
+}
+
+.cert-convert .err-msg {
+    color: red;
+}
+
+.cert-convert button {
+    background: #f1356d;
+    color: #fff;
+    border: 0;
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+}
