@@ -1,2 +1,8 @@
 # certificate-converter
-React certificate converter app can be used to convert "PKCS12 to Key and Certificate", "PKCS12 to JKS" and "JKS to PKCS12"
+A react certificate converter application that converts certificate in the browser with out any back-end api call. 
+
+Currently supporting below formats
+1. PKCS12-DER to TLS Key pair
+1. JKS to TLS Key pair
+
+Demo is available at [here](https://certificate-converter.netlify.app/)
