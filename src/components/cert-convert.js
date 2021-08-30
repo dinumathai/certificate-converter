@@ -1,7 +1,9 @@
-import './cert-convert.css';
 import { useRef, useState } from 'react';
-import ConvertToPem from '../services/p12/p12';
+import p12 from '../services/p12/p12';
 import * as jks from 'jks-js';
+
+import './cert-convert.css';
+import DownloadButton from './download-link';
 
 const CertConvert = () => {
     const OPTN_PKCS12_TO_KEY_PAIR = 'Pkcs12-DER-to-Key-pair';
@@ -10,12 +12,16 @@ const CertConvert = () => {
 
     const [convertType, setConvertType] = useState(OPTN_PKCS12_TO_KEY_PAIR);
     const [password, setPassword] = useState('');
-    const [alias, setAlias] = useState(null);
+    const [alias, setAlias] = useState('');
     const [optPemCertificate, setOptPemCertificate] = useState('');
     const [optPemKey, setOptPemKey] = useState('');
     const [errorMessage, setErrorMessage] = useState(null);
+    const [downloadFileName, setDownloadFileName] = useState(null);
+    const [downloadFileContent, setDownloadFileContent] = useState(null);
 
     let fileDetails = useRef(null);
+
+    let fileInputElem;
 
     const handleFileChosen = (file) => {
         resetOutputFields();
@@ -30,6 +36,8 @@ const CertConvert = () => {
         setErrorMessage(null);
         setOptPemKey('');
         setOptPemCertificate('');
+        setDownloadFileContent(null);
+        setDownloadFileName(null);
     }
 
     const doConvert = () => {
@@ -38,38 +46,73 @@ const CertConvert = () => {
             setErrorMessage('Missing input file');
             return;
         }
-        try {
-            convertKey();
-        } catch (err) {
-            setErrorMessage('Error : Check input file, password and alias [' + err.message + ']');
-            console.error(err);
-        }
+        convertKey();
     };
+
+    const processP12ToKeyPair = (fileReader) => {
+        let fileContent = fileReader.result;
+        const { pemCertificate, pemKey } = p12.ConvertToPem(fileContent, password);
+        setOptPemCertificate(pemCertificate);
+        setOptPemKey(pemKey);
+    }
+
+    const processJKSToKeyPair = (fileReader) => {
+        let fileContent = fileReader.result;
+        const keystore = jks.toPem(fileContent, password);
+        if (!keystore[alias]) {
+            setErrorMessage("Invalid alias name. Available aliases are - " + Object.keys(keystore));
+            return;
+        }
+        setOptPemCertificate(keystore[alias].cert);
+        setOptPemKey(keystore[alias].key);
+    }
+
+    const processJKSToP12 = (fileReader) => {
+        let fileContent = fileReader.result;
+        const keystore = jks.toPem(fileContent, password);
+        if (!keystore[alias]) {
+            setErrorMessage("Invalid alias name. Available aliases are - " + Object.keys(keystore));
+            return;
+        }
+        const p12Bytes = p12.ConvertCertificateToP12(keystore[alias].key, keystore[alias].cert, password)
+        const fileName = fileDetails.current.name.replace(".jks", ".p12");
+        setDownloadFileContent(p12Bytes);
+        setDownloadFileName(fileName);
+    }
 
     const convertKey = async () => {
         let fileReader = new FileReader();
-        let fileContent;
         switch (convertType) {
             case OPTN_PKCS12_TO_KEY_PAIR:
                 fileReader.onload = () => {
-                    fileContent = fileReader.result;
-                    const { pemCertificate, pemKey } = ConvertToPem(fileContent, password);
-                    setOptPemCertificate(pemCertificate);
-                    setOptPemKey(pemKey);
+                    try {
+                        processP12ToKeyPair(fileReader);
+                    } catch (err) {
+                        setErrorMessage('Error : Check input file, password [' + err.message + ']');
+                        console.error(err);
+                    }
                 };
                 fileReader.readAsBinaryString(fileDetails.current);
-
                 break;
             case OPTN_JKS_TO_KEY_PAIR:
                 fileReader.onload = () => {
-                    fileContent = fileReader.result;
-                    const keystore = jks.toPem(fileContent, password);
-                    if (!keystore[alias]) {
-                        setErrorMessage("Invalid alias name. Available aliases are - " + Object.keys(keystore));
-                        return;
+                    try {
+                        processJKSToKeyPair(fileReader);
+                    } catch (err) {
+                        setErrorMessage('Error : Check input file, password and alias [' + err.message + ']');
+                        console.error(err);
                     }
-                    setOptPemCertificate(keystore[alias].cert);
-                    setOptPemKey(keystore[alias].key);
+                }
+                fileReader.readAsArrayBuffer(fileDetails.current);
+                break;
+            case OPTN_JKS_TO_PKCS12:
+                fileReader.onload = () => {
+                    try {
+                        processJKSToP12(fileReader);
+                    } catch (err) {
+                        setErrorMessage('Error : Check input file, password and alias [' + err.message + ']');
+                        console.error(err);
+                    }
                 }
                 fileReader.readAsArrayBuffer(fileDetails.current);
                 break;
@@ -80,7 +123,7 @@ const CertConvert = () => {
 
     const onFileTypeChange = (e) => {
         setConvertType(e.target.value);
-        document.getElementById("file-input").value = null;
+        fileInputElem.value = '';
         fileDetails.current = null;
     };
 
@@ -93,11 +136,11 @@ const CertConvert = () => {
                     onChange={onFileTypeChange} >
                     <option value={OPTN_PKCS12_TO_KEY_PAIR}>PKCS12-DER to TLS Key pair</option>
                     <option value={OPTN_JKS_TO_KEY_PAIR}>JKS to TLS Key pair</option>
-                    <option value={OPTN_JKS_TO_PKCS12} disabled>JKS to PKCS12-DER</option>
+                    <option value={OPTN_JKS_TO_PKCS12}>JKS to PKCS12-DER</option>
                 </select>
                 <label>Input file:</label>
                 <input
-                    id="file-input"
+                    ref={(elem) => { fileInputElem = elem; }}
                     type="file"
                     accept={convertType === OPTN_PKCS12_TO_KEY_PAIR ? '.p12' : '.jks'}
                     onChange={e => handleFileChosen(e.target.files[0])}
@@ -120,10 +163,17 @@ const CertConvert = () => {
                 <button onClick={doConvert}>Convert</button>
             </div>
             <div className="cert-convert-output">
-                <label>Key:</label>
-                <textarea value={optPemKey} readOnly></textarea>
-                <label>Certificate:</label>
-                <textarea value={optPemCertificate} readOnly></textarea>
+                {optPemKey && optPemKey.length > 0 && <div>
+                    <label>Key:</label>
+                    <textarea value={optPemKey} readOnly></textarea>
+                </div>}
+                {optPemCertificate && optPemKey.length > 0 && <div>
+                    <label>Certificate:</label>
+                    <textarea value={optPemCertificate} readOnly></textarea>
+                </div>}
+                {convertType === OPTN_JKS_TO_PKCS12 && <div>
+                    <DownloadButton downloadFileContent={downloadFileContent} downloadFileName={downloadFileName} />
+                </div>}
             </div>
         </div>
     );

@@ -41,4 +41,27 @@ function getCertificateFromP12(p12) {
     return pemCertificate;
 }
 
-export default ConvertToPem
+function ConvertCertificateToP12(privateKeyTxt, certificateChainTxt, password) {
+    const certChainBeginTxt = "-----BEGIN CERTIFICATE-----";
+    const certChainEndTxt = "-----END CERTIFICATE-----";
+    const certChain = certificateChainTxt.split(certChainEndTxt);
+    const certificateChain = [];
+    certChain.forEach((certTxt) => {
+        if (certTxt.indexOf(certChainBeginTxt) < 0) {
+            return;
+        }
+        certificateChain.push(forge.pki.certificateFromPem(certTxt + certChainEndTxt));
+    });
+
+    const privateKey = forge.pki.privateKeyFromPem(privateKeyTxt);
+    const p12Asn1 = forge.pkcs12.toPkcs12Asn1(
+        privateKey, certificateChain, password, { generateLocalKeyId: true, algorithm: '3des' });
+
+    return forge.asn1.toDer(p12Asn1).getBytes();
+}
+
+const p12 = {
+    ConvertToPem,
+    ConvertCertificateToP12
+}
+export default p12;
