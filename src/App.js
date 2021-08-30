@@ -6,7 +6,7 @@ function App() {
       <nav className="navbar">
         <h1>Convert Certificate Online</h1>
         <div className="links">
-          <a rel="noreferrer" target="_blank" href="https://github.com/dinumathai/certificate-converter">Contact</a>
+          <a rel="noreferrer" target="_blank" href="https://github.com/dinumathai/certificate-converter/issues">Contact</a>
         </div>
       </nav>
       <p className="warning"><span className="bold">Security Note:</span> The certificate never leaves browser. Close the browser once done.
